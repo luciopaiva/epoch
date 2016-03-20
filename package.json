@@ -1,0 +1,19 @@
+{
+  "name": "epoch",
+  "private": true,
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "run": "node target/server",
+    "postinstall": "typings install && cd public && npm install"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.13.4"
+  },
+  "devDependencies": {
+    "typings": "latest"
+  }
+}
