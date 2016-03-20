@@ -68,7 +68,7 @@ module Epoch {
 
         // add some slack
         earliestDate = earliestDate.clone().subtract(10, 'years');  // clone() before changing the original value
-        latestDate = latestDate.clone().add(10, 'years');
+        latestDate = latestDate.clone().add(10, 'years');  // ToDo remove hardcoded slacks
 
         return [earliestDate.toDate(), latestDate.toDate()];
     }
@@ -100,7 +100,7 @@ module Epoch {
         // the end of the text to show may extrapolate the mark of the end of that event, so we want to make sure
         // there's enough room so it doesn't overlap
         let endOfText = moment(timeScale.invert(timeScale(scientistToFit.begin) +
-            Epoch.Util.getTextWidth(scientistToFit.name))).add(20, 'years');
+            Epoch.Util.getTextWidth(scientistToFit.name))).add(20, 'years');  // ToDo remove hardcoded slack
         let worstCaseEnd = moment.max(scientistToFit.end, endOfText);
 
         newInterval = [scientistToFit.begin, worstCaseEnd];
