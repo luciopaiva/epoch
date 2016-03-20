@@ -4,6 +4,10 @@
 module Epoch {
     import Moment = moment.Moment;
 
+    export var allocatedSlots: Scientist[][] = [];
+    const
+        EVENT_MARGIN = 3,
+        EVENT_HEIGHT = 30 + EVENT_MARGIN;
     var
         timeline: d3.Selection<any>,
         timeScale;
@@ -78,6 +82,42 @@ module Epoch {
         return [0, timelineWidth];
     }
 
+    function calculateEventWidth(datum: Scientist) {
+        return (timeScale(datum.end) - timeScale(datum.begin)) + 'px';
+    }
+
+    function calculateEventLeftPosition(datum: Scientist) {
+        return timeScale(datum.begin) + 'px';
+    }
+
+    function calculateEventTopPosition(scientistToFit: Scientist) {
+        let
+            didFit: boolean = false,
+            level: number = 0;
+
+        didFit = allocatedSlots.some(function (row: Scientist[], rowIndex: number): boolean {
+
+            didFit = row.every(function (scientist: Scientist): boolean {
+                return scientistToFit.end.isBefore(scientist.begin) || scientistToFit.begin.isAfter(scientist.end);
+            });
+
+            if (didFit) {
+                level = rowIndex;
+                row.push(scientistToFit);
+            }
+
+            return didFit;
+        });
+
+        if (!didFit) {
+            // we have to open a new row
+            allocatedSlots.push([scientistToFit]);
+            level = allocatedSlots.length - 1;
+        }
+
+        return (EVENT_MARGIN + (level * EVENT_HEIGHT)) + 'px';
+    }
+
     function displayData(scientists: Scientist[]): void {
 
         // map data to elements
@@ -97,9 +137,9 @@ module Epoch {
         data.enter()
             .append('div')
             .classed('event', true)
-            .style('left', function (datum) {
-                return timeScale(datum.begin) + 'px';
-            })
+            .style('left', calculateEventLeftPosition)
+            .style('width', calculateEventWidth)
+            .style('top', calculateEventTopPosition)
             .text(function (datum: Scientist) {
                 return datum.name;
             });
