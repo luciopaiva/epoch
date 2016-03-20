@@ -13,6 +13,9 @@ module Epoch {
         currentMoment: Moment = moment(),
         earliestMoment: Moment,
         latestMoment: Moment,
+        horizontalAxis: d3.svg.Axis,
+        zoom: d3.behavior.Zoom<any>,
+        data: d3.selection.Update<any>,
         timeline: d3.Selection<any>,
         timeScale;
 
@@ -47,6 +50,8 @@ module Epoch {
             .get(function (err, scientists: Scientist[]) {
                 if (!err) {
                     displayData(scientists);
+                } else {
+                    throw new Error(err);
                 }
             });
     }
@@ -140,10 +145,19 @@ module Epoch {
         return scientist.hasNoEnd;
     }
 
+    function redraw() {
+        d3.select('#horizontal-axis').call(horizontalAxis);
+        allocatedSlots = [];
+        data
+            .style('left', calculateEventLeftPosition)
+            .style('width', calculateEventWidth)
+            .style('top', calculateEventTopPosition);
+    }
+
     function displayData(scientists: Scientist[]): void {
 
         // map data to elements
-        let data = timeline
+        data = timeline
             .selectAll('.event')
             .data(scientists, function (scientist: Scientist) {
                 // uniquely identify a scientist by its name
@@ -156,6 +170,7 @@ module Epoch {
             .range(getTimelineRange());
 
         // process incoming data
+        allocatedSlots = [];
         data.enter()
             .append('div')
             .classed('event', true)
@@ -166,6 +181,14 @@ module Epoch {
             .text(function (datum: Scientist) {
                 return datum.name;
             });
+
+        // horizontal axis
+        horizontalAxis = d3.svg.axis().scale(timeScale).orient('bottom');
+        d3.select('#horizontal-axis').call(horizontalAxis);
+
+        zoom = d3.behavior.zoom().on('zoom', redraw);
+        zoom.x(timeScale);
+        timeline.call(zoom);
     }
 
     export function run(): void {
