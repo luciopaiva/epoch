@@ -100,7 +100,7 @@ module Epoch {
         // the end of the text to show may extrapolate the mark of the end of that event, so we want to make sure
         // there's enough room so it doesn't overlap
         let endOfText = moment(timeScale.invert(timeScale(scientistToFit.begin) +
-            Epoch.Util.getTextWidth(scientistToFit.name)));
+            Epoch.Util.getTextWidth(scientistToFit.name))).add(20, 'years');
         let worstCaseEnd = moment.max(scientistToFit.end, endOfText);
 
         newInterval = [scientistToFit.begin, worstCaseEnd];
