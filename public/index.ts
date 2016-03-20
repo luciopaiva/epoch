@@ -95,10 +95,20 @@ module Epoch {
             didFit: boolean = false,
             level: number = 0;
 
+        let endOfText = moment(timeScale.invert(timeScale(scientistToFit.begin) + getTextWidth(scientistToFit.name)));
+        let worstCaseEnd = moment.max(scientistToFit.end, endOfText);
+
+        if (endOfText.isAfter(scientistToFit.end)) {
+            console.info('Name extrapolates lifespan: ' + scientistToFit.name);
+        }
+
         didFit = allocatedSlots.some(function (row: Scientist[], rowIndex: number): boolean {
 
             didFit = row.every(function (scientist: Scientist): boolean {
-                return scientistToFit.end.isBefore(scientist.begin) || scientistToFit.begin.isAfter(scientist.end);
+                let endOfText2 = moment(timeScale.invert(timeScale(scientist.begin) + getTextWidth(scientist.name)));
+                let worstCaseEnd2 = moment.max(scientist.end, endOfText2);
+
+                return worstCaseEnd.isBefore(scientist.begin) || scientistToFit.begin.isAfter(worstCaseEnd2);
             });
 
             if (didFit) {
@@ -116,6 +126,23 @@ module Epoch {
         }
 
         return (EVENT_MARGIN + (level * EVENT_HEIGHT)) + 'px';
+    }
+
+    /**
+     * Uses canvas.measureText to compute and return the width of the given text of given font in pixels.
+     *
+     * @param {String} text The text to be rendered.
+     *
+     * @see http://stackoverflow.com/questions/118241/calculate-text-width-with-javascript/21015393#21015393
+     */
+    function getTextWidth(text: string): number {
+        const FONT = '8pt arial';
+        var canvas = document.createElement('canvas');
+        var context = canvas.getContext('2d');
+        context.font = FONT;
+        var metrics = context.measureText(text);
+        canvas.remove();
+        return metrics.width;
     }
 
     function displayData(scientists: Scientist[]): void {
