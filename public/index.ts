@@ -10,6 +10,9 @@ module Epoch {
         EVENT_MARGIN = 3,
         EVENT_HEIGHT = 30 + EVENT_MARGIN;
     var
+        currentMoment: Moment = moment(),
+        earliestMoment: Moment,
+        latestMoment: Moment,
         timeline: d3.Selection<any>,
         timeScale;
 
@@ -19,14 +22,16 @@ module Epoch {
     class Scientist {
         public begin: Moment;
         public end: Moment;
+        public hasNoEnd: boolean;
 
         public static strToMoment(date: string): Moment {
-            return (date === '-') ? moment() : moment(date, 'YYYY-MM-DD');
+            return (date === '-') ? null : moment(date, 'YYYY-MM-DD');
         }
 
         constructor(public name: string, begin: string, end: string) {
             this.begin = Scientist.strToMoment(begin);
             this.end = Scientist.strToMoment(end);
+            this.hasNoEnd = end === '-';
         }
     }
 
@@ -54,23 +59,20 @@ module Epoch {
      * @returns {Date[]}
      */
     function getTimelineDomain(scientists: Scientist[]): Date[] {
-        let
-            earliestDate: Moment,
-            latestDate: Moment;
 
-        earliestDate = moment();
-        latestDate = moment(Number.MIN_VALUE);
+        earliestMoment = moment();
+        latestMoment = moment(Number.MIN_VALUE);
 
         scientists.forEach(function (scientist:Scientist) {
-            earliestDate = moment.min(earliestDate, scientist.begin);
-            latestDate = moment.max(latestDate, scientist.end);
+            earliestMoment = moment.min(earliestMoment, scientist.begin);
+            latestMoment = moment.max(latestMoment, scientist.hasNoEnd ? currentMoment : scientist.end);
         });
 
         // add some slack
-        earliestDate = earliestDate.clone().subtract(10, 'years');  // clone() before changing the original value
-        latestDate = latestDate.clone().add(10, 'years');  // ToDo remove hardcoded slacks
+        earliestMoment = earliestMoment.clone().subtract(10, 'years');  // clone() before changing the original value
+        latestMoment = latestMoment.clone().add(10, 'years');  // ToDo remove hardcoded slacks
 
-        return [earliestDate.toDate(), latestDate.toDate()];
+        return [earliestMoment.toDate(), latestMoment.toDate()];
     }
 
     /**
@@ -84,7 +86,7 @@ module Epoch {
     }
 
     function calculateEventWidth(datum: Scientist) {
-        return (timeScale(datum.end) - timeScale(datum.begin)) + 'px';
+        return (timeScale(datum.hasNoEnd ? latestMoment : datum.end) - timeScale(datum.begin)) + 'px';
     }
 
     function calculateEventLeftPosition(datum: Scientist) {
@@ -101,7 +103,7 @@ module Epoch {
         // there's enough room so it doesn't overlap
         let endOfText = moment(timeScale.invert(timeScale(scientistToFit.begin) +
             Epoch.Util.getTextWidth(scientistToFit.name))).add(20, 'years');  // ToDo remove hardcoded slack
-        let worstCaseEnd = moment.max(scientistToFit.end, endOfText);
+        let worstCaseEnd = scientistToFit.hasNoEnd ? latestMoment : moment.max(scientistToFit.end, endOfText);
 
         newInterval = [scientistToFit.begin, worstCaseEnd];
 
@@ -134,6 +136,10 @@ module Epoch {
         return (EVENT_MARGIN + (level * EVENT_HEIGHT)) + 'px';
     }
 
+    function checkIfEventHasNoEnd(scientist: Scientist) {
+        return scientist.hasNoEnd;
+    }
+
     function displayData(scientists: Scientist[]): void {
 
         // map data to elements
@@ -153,6 +159,7 @@ module Epoch {
         data.enter()
             .append('div')
             .classed('event', true)
+            .classed('event-without-end', checkIfEventHasNoEnd)
             .style('left', calculateEventLeftPosition)
             .style('width', calculateEventWidth)
             .style('top', calculateEventTopPosition)

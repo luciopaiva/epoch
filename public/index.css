@@ -25,3 +25,9 @@ body {
     box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     white-space: nowrap;
 }
+
+.event-without-end {
+    background-image: linear-gradient(to right, transparent 60%, rgba(0,0,0,0.2));
+    border-bottom-right-radius: 0;
+    border-top-right-radius: 0;
+}
