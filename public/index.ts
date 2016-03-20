@@ -4,7 +4,8 @@
 module Epoch {
     import Moment = moment.Moment;
 
-    export var allocatedSlots: Scientist[][] = [];
+    type Interval = [Moment, Moment];
+    export var allocatedSlots: Interval[][] = [];
     const
         EVENT_MARGIN = 3,
         EVENT_HEIGHT = 30 + EVENT_MARGIN;
@@ -92,57 +93,45 @@ module Epoch {
 
     function calculateEventTopPosition(scientistToFit: Scientist) {
         let
+            newInterval: Interval,
             didFit: boolean = false,
             level: number = 0;
 
-        let endOfText = moment(timeScale.invert(timeScale(scientistToFit.begin) + getTextWidth(scientistToFit.name)));
+        // the end of the text to show may extrapolate the mark of the end of that event, so we want to make sure
+        // there's enough room so it doesn't overlap
+        let endOfText = moment(timeScale.invert(timeScale(scientistToFit.begin) +
+            Epoch.Util.getTextWidth(scientistToFit.name)));
         let worstCaseEnd = moment.max(scientistToFit.end, endOfText);
 
-        if (endOfText.isAfter(scientistToFit.end)) {
-            console.info('Name extrapolates lifespan: ' + scientistToFit.name);
-        }
+        newInterval = [scientistToFit.begin, worstCaseEnd];
 
-        didFit = allocatedSlots.some(function (row: Scientist[], rowIndex: number): boolean {
+        // for each existing row
+        didFit = allocatedSlots.some(function (row: Interval[], rowIndex: number): boolean {
 
-            didFit = row.every(function (scientist: Scientist): boolean {
-                let endOfText2 = moment(timeScale.invert(timeScale(scientist.begin) + getTextWidth(scientist.name)));
-                let worstCaseEnd2 = moment.max(scientist.end, endOfText2);
+            // check if it passes the overlap test against all intervals that are already reserved in this row
+            didFit = row.every(function (interval: Interval): boolean {
 
-                return worstCaseEnd.isBefore(scientist.begin) || scientistToFit.begin.isAfter(worstCaseEnd2);
+                return newInterval[1].isBefore(interval[0]) ||  // new event must end before this interval starts...
+                    newInterval[0].isAfter(interval[1]);        // ...or it must begin after this interval ends.
             });
 
+            // if there were no overlaps in this row, we occupy the intended interval
             if (didFit) {
                 level = rowIndex;
-                row.push(scientistToFit);
+                row.push(newInterval);
             }
 
             return didFit;
         });
 
+        // if none of the existing rows had a slot available
         if (!didFit) {
-            // we have to open a new row
-            allocatedSlots.push([scientistToFit]);
+            // open a new row and put it there
+            allocatedSlots.push([newInterval]);
             level = allocatedSlots.length - 1;
         }
 
         return (EVENT_MARGIN + (level * EVENT_HEIGHT)) + 'px';
-    }
-
-    /**
-     * Uses canvas.measureText to compute and return the width of the given text of given font in pixels.
-     *
-     * @param {String} text The text to be rendered.
-     *
-     * @see http://stackoverflow.com/questions/118241/calculate-text-width-with-javascript/21015393#21015393
-     */
-    function getTextWidth(text: string): number {
-        const FONT = '8pt arial';
-        var canvas = document.createElement('canvas');
-        var context = canvas.getContext('2d');
-        context.font = FONT;
-        var metrics = context.measureText(text);
-        canvas.remove();
-        return metrics.width;
     }
 
     function displayData(scientists: Scientist[]): void {
