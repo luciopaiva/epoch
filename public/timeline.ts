@@ -201,7 +201,8 @@ module Epoch {
 
                     // horizontal axis
                     horizontalAxis = d3.svg.axis().scale(timeScale).orient('bottom');
-                    horizontalAxisElement = timelineElement.append('svg').classed(HORIZONTAL_AXIS_CLASS_NAME, true)
+                    horizontalAxisElement = timelineElement.append('svg')
+                        .classed(HORIZONTAL_AXIS_CLASS_NAME, true).classed('axis', true)
                         .call(horizontalAxis);
 
                     // zoom/drag behavior
