@@ -14,8 +14,8 @@ module Epoch {
             EVENT_CLASS_NAME = 'event',
             EVENT_WITHOUT_END_CLASS_NAME = 'event-without-end',
             HORIZONTAL_AXIS_CLASS_NAME = 'timeline-horizontal-axis',
-            EVENT_MARGIN = 3,
-            EVENT_HEIGHT = 30 + EVENT_MARGIN,
+            EVENT_VERTICAL_MARGIN = 4,
+            EVENT_HEIGHT = 30 + EVENT_VERTICAL_MARGIN,
             CHART_LATERAL_PADDING_IN_YEARS = 10,
             TIME_SPAN_RIGHT_MARGIN_IN_YEARS = 20,
             DEFAULT_HEIGHT = 600;
@@ -66,8 +66,6 @@ module Epoch {
             // This plugin follows D3's conventions: https://bost.ocks.org/mike/chart/
             let
                 height = DEFAULT_HEIGHT,
-                latestMoment: Moment,
-                earliestMoment: Moment,
                 horizontalAxis: d3.svg.Axis,
                 horizontalAxisElement: d3.Selection<any>,
                 zoom: d3.behavior.Zoom<any>,
@@ -84,18 +82,24 @@ module Epoch {
              * @returns {Date[]}
              */
             function getTimelineDomain(events: TimeSpan[]): [Date, Date] {
+                let
+                    latestMoment: Moment,
+                    earliestMoment: Moment;
 
-                earliestMoment = moment.min(events.map(function (event) {
-                    return event.begin;
-                }));
+                // earliestMoment = moment.min(events.map(function (event) {
+                //     return event.begin;
+                // }));
                 latestMoment = moment.max(events.map(function (event) {
                     return event.hasNoEnd ? moment() : event.end;
                 }));
 
                 // add some slack
                 // clone() so to not change an event's original value
-                earliestMoment = earliestMoment.clone().subtract(CHART_LATERAL_PADDING_IN_YEARS, 'years');
+                // earliestMoment = earliestMoment.clone().subtract(CHART_LATERAL_PADDING_IN_YEARS, 'years');
                 latestMoment = latestMoment.clone().add(CHART_LATERAL_PADDING_IN_YEARS, 'years');
+
+                // using a fixed window starting from the latest moment
+                earliestMoment = latestMoment.clone().subtract(300, 'years');
 
                 return [earliestMoment.toDate(), latestMoment.toDate()];
             }
@@ -133,7 +137,8 @@ module Epoch {
                 // sure there's enough room so it doesn't overlap
                 let endOfText = moment(timeScale.invert(timeScale(timeSpanToFit.begin.toDate()) +
                     Epoch.Util.getTextWidth(timeSpanToFit.name))).add(TIME_SPAN_RIGHT_MARGIN_IN_YEARS, 'years');
-                let worstCaseEnd = timeSpanToFit.hasNoEnd ? latestMoment : moment.max(timeSpanToFit.end, endOfText);
+                let worstCaseEnd = timeSpanToFit.hasNoEnd ?
+                    moment(timeScale.domain()[1]) : moment.max(timeSpanToFit.end, endOfText);
 
                 newInterval = [timeSpanToFit.begin, worstCaseEnd];
 
@@ -163,7 +168,7 @@ module Epoch {
                     level = allocatedSlots.length - 1;
                 }
 
-                return (EVENT_MARGIN + (level * EVENT_HEIGHT)) + 'px';
+                return (EVENT_VERTICAL_MARGIN + (level * EVENT_HEIGHT)) + 'px';
             }
 
             function redraw() {
