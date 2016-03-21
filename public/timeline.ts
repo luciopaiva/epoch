@@ -66,7 +66,6 @@ module Epoch {
             // This plugin follows D3's conventions: https://bost.ocks.org/mike/chart/
             let
                 height = DEFAULT_HEIGHT,
-                currentMoment: Moment = moment(),
                 latestMoment: Moment,
                 earliestMoment: Moment,
                 horizontalAxis: d3.svg.Axis,
@@ -90,7 +89,7 @@ module Epoch {
                     return event.begin;
                 }));
                 latestMoment = moment.max(events.map(function (event) {
-                    return event.hasNoEnd ? currentMoment : event.end;
+                    return event.hasNoEnd ? moment() : event.end;
                 }));
 
                 // add some slack
@@ -111,16 +110,20 @@ module Epoch {
                 return [0, timelineWidth];
             }
 
-            function calculateEventWidth(datum: TimeSpan) {
+            function calculateEventWidth(datum: TimeSpan): string {
                 return (timeScale(datum.hasNoEnd ?
-                        latestMoment.toDate() : datum.end.toDate()) - timeScale(datum.begin.toDate())) + 'px';
+                        new Date() : datum.end.toDate()) - timeScale(datum.begin.toDate())) + 'px';
             }
 
-            function calculateEventLeftPosition(datum: TimeSpan) {
+            function calculateEventLeftPosition(datum: TimeSpan): string {
                 return timeScale(datum.begin.toDate()) + 'px';
             }
 
-            function calculateEventTopPosition(timeSpanToFit: TimeSpan) {
+            function getCurrentDatePosition(): string {
+                return timeScale(new Date()) + 'px';
+            }
+
+            function calculateEventTopPosition(timeSpanToFit: TimeSpan): string {
                 let
                     newInterval: Interval,
                     didFit: boolean = false,
@@ -173,6 +176,8 @@ module Epoch {
                     .style('left', calculateEventLeftPosition)
                     .style('width', calculateEventWidth)
                     .style('top', calculateEventTopPosition);
+
+                timelineElement.select('.current-date').style('left', getCurrentDatePosition);
             }
 
             let main: TimelineChart = <TimelineChart>function(selection: d3.Selection<any>): void {
@@ -198,6 +203,10 @@ module Epoch {
                         .style('width', calculateEventWidth)
                         .style('top', calculateEventTopPosition)
                         .text(TimeSpan.getTitle);
+
+                    // add vertical line representing the current date
+                    timelineElement.append('div').classed('current-date', true)
+                        .style('left', getCurrentDatePosition);
 
                     // horizontal axis
                     horizontalAxis = d3.svg.axis().scale(timeScale).orient('bottom');

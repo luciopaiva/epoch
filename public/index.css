@@ -41,6 +41,15 @@ body {
     border-top-right-radius: 0;
 }
 
+.current-date {
+    position: absolute;
+    width: 1px;
+    background-color: #a3c7e8;
+    box-shadow: 0 0 5px #a3c7e8;
+    top: 0;
+    bottom: 0;
+}
+
 .axis line, .axis path {
     fill: none;
     stroke: black;
