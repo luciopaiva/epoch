@@ -62,6 +62,21 @@ module Epoch {
             }
         }
 
+        /**
+         * This is the function that will be exported by this d3.js plugin. It follows the d3.js convention for plugins,
+         * returning a creator for a function that can be called within a selection chain.
+         * 
+         * To use it, start by creating an instance of it and configuring any properties:
+         * 
+         *     let chart: TimelinePlugin.TimelineChart = TimelinePlugin.chart();
+         *     chart.height(600);
+         *
+         * Then use it in a chain:
+         *
+         *     d3.select('#some-element').datum(events).call(chart);
+         * 
+         * @returns {TimelineChart}
+         */
         export function chart(): TimelineChart {
             // This plugin follows D3's conventions: https://bost.ocks.org/mike/chart/
             let

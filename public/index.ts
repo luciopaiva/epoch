@@ -6,9 +6,12 @@ module Epoch {
     import TimeSpan = Epoch.TimelinePlugin.TimeSpan;
 
     var
-        chart: TimelinePlugin.TimelineChart = <TimelinePlugin.TimelineChart> TimelinePlugin.chart().height(600);
+        chart: TimelinePlugin.TimelineChart;
 
     export function run(): void {
+        chart = TimelinePlugin.chart();
+        chart.height(600);
+
         d3.csv('sample.csv')
             .row(function (obj: {}): TimeSpan {
                 return new TimeSpan(obj['name'], obj['begin'], obj['end']);
