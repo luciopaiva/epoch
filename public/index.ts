@@ -10,7 +10,6 @@ module Epoch {
 
     export function run(): void {
         chart = TimelinePlugin.chart();
-        chart.height(600);
 
         d3.csv('sample.csv')
             .row(function (obj: {}): TimeSpan {

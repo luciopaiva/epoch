@@ -11,20 +11,19 @@ module Epoch {
         import Moment = moment.Moment;
 
         const
-            EVENT_CLASS_NAME = 'event',
-            EVENT_WITHOUT_END_CLASS_NAME = 'event-without-end',
+            EVENT_CLASS_NAME = 'timeline-event',
             HORIZONTAL_AXIS_CLASS_NAME = 'timeline-horizontal-axis',
+            LINE_CURRENT_DATE_CLASS_NAME = 'timeline-current-date',
             EVENT_VERTICAL_MARGIN = 4,
-            EVENT_HEIGHT = 30 + EVENT_VERTICAL_MARGIN,
+            EVENT_HEIGHT = 30,
+            EVENT_HEIGHT_PLUS_MARGIN = EVENT_HEIGHT + EVENT_VERTICAL_MARGIN,
             CHART_LATERAL_PADDING_IN_YEARS = 10,
-            TIME_SPAN_RIGHT_MARGIN_IN_YEARS = 20,
-            DEFAULT_HEIGHT = 600;
+            TIME_SPAN_RIGHT_MARGIN_IN_YEARS = 20;
 
         type Interval = [Moment, Moment];
 
         export interface TimelineChart {
             (selection: d3.Selection<any>): void;
-            height: { (value?: number): number|TimelineChart };
         }
 
         /**
@@ -80,7 +79,7 @@ module Epoch {
         export function chart(): TimelineChart {
             // This plugin follows D3's conventions: https://bost.ocks.org/mike/chart/
             let
-                height = DEFAULT_HEIGHT,
+                height: number,
                 horizontalAxis: d3.svg.Axis,
                 horizontalAxisElement: d3.Selection<any>,
                 zoom: d3.behavior.Zoom<any>,
@@ -129,20 +128,19 @@ module Epoch {
                 return [0, timelineWidth];
             }
 
-            function calculateEventWidth(datum: TimeSpan): string {
-                return (timeScale(datum.hasNoEnd ?
-                        new Date() : datum.end.toDate()) - timeScale(datum.begin.toDate())) + 'px';
+            function calculateEventWidth(datum: TimeSpan): number {
+                return timeScale(datum.hasNoEnd ? new Date() : datum.end.toDate()) - timeScale(datum.begin.toDate());
             }
 
-            function calculateEventLeftPosition(datum: TimeSpan): string {
-                return timeScale(datum.begin.toDate()) + 'px';
+            function calculateEventLeftPosition(datum: TimeSpan): number {
+                return timeScale(datum.begin.toDate());
             }
 
-            function getCurrentDatePosition(): string {
-                return timeScale(new Date()) + 'px';
+            function getCurrentDatePosition(): number {
+                return timeScale(new Date());
             }
 
-            function calculateEventTopPosition(timeSpanToFit: TimeSpan): string {
+            function calculateEventTopPosition(timeSpanToFit: TimeSpan): number {
                 let
                     newInterval: Interval,
                     didFit: boolean = false,
@@ -183,7 +181,36 @@ module Epoch {
                     level = allocatedSlots.length - 1;
                 }
 
-                return (EVENT_VERTICAL_MARGIN + (level * EVENT_HEIGHT)) + 'px';
+                return EVENT_VERTICAL_MARGIN + level * EVENT_HEIGHT_PLUS_MARGIN;
+            }
+
+            function generateEventCellPath(event: TimeSpan): string {
+                let
+                    path: Util.SvgPathBuilder = new Util.SvgPathBuilder(true),
+                    w: number = calculateEventWidth(event),
+                    radius: number = EVENT_HEIGHT / 2;
+
+                path
+                    .moveTo(0, radius)
+                    .roundTo(radius, 0);
+
+                if (event.hasNoEnd) {
+                    path
+                        .horizontalTo(w)
+                        .verticalTo(EVENT_HEIGHT);
+                } else {
+                    path
+                        .horizontalTo(w - radius)
+                        .roundTo(w, radius)
+                        .roundTo(w - radius, EVENT_HEIGHT);
+                }
+
+                path
+                    .horizontalTo(radius)
+                    .roundTo(0, radius)
+                    .close();
+
+                return path.build();
             }
 
             function redraw() {
@@ -193,18 +220,33 @@ module Epoch {
                 // recalculate events' displacement
                 allocatedSlots = [];
                 boundData
-                    .style('left', calculateEventLeftPosition)
-                    .style('width', calculateEventWidth)
-                    .style('top', calculateEventTopPosition);
+                    .attr('transform', transformTranslate(calculateEventLeftPosition, calculateEventTopPosition))
+                    .select('path')
+                    .attr('d', generateEventCellPath);
 
-                timelineElement.select('.current-date').style('left', getCurrentDatePosition);
+                timelineElement.select('.' + LINE_CURRENT_DATE_CLASS_NAME)
+                    .attr('transform', transformTranslate(getCurrentDatePosition, 0));
             }
 
-            let main: TimelineChart = <TimelineChart>function(selection: d3.Selection<any>): void {
+            function transformTranslate(
+                fnX: {(datum: TimeSpan):number}|number,
+                fnY: {(datum: TimeSpan):number}|number): (datum: TimeSpan)=>string {
+
+                return function(datum: TimeSpan): string {
+                    let x: number = typeof fnX === 'function' ? fnX(datum) : fnX;
+                    let y: number = typeof fnY === 'function' ? fnY(datum) : fnY;
+                    return 'translate(' + x + ',' + y + ')';
+                }
+            }
+
+            return function(selection: d3.Selection<any>): void {
                 // selection should be a single element
-                selection.each(function (events) {
+                selection.each(function (events: TimeSpan[]) {
+                    // ToDo events.filter(removeEventsOutsideVisibleRange());
+
                     // bind time spans to sub-elements having an `.event` class
                     timelineElement = d3.select(this);
+                    height = parseInt(timelineElement.style('height'), 10);
                     boundData = timelineElement.selectAll('.' + EVENT_CLASS_NAME)
                         .data(events, TimeSpan.getUniqueIndenfitier);
 
@@ -215,24 +257,36 @@ module Epoch {
 
                     // process incoming data
                     allocatedSlots = [];
-                    boundData.enter()
-                        .append('div')
+                    let newEventGroups = boundData.enter()
+                        .append('g')
                         .classed(EVENT_CLASS_NAME, true)
-                        .classed(EVENT_WITHOUT_END_CLASS_NAME, TimeSpan.checkIfEventHasNoEnd)
-                        .style('left', calculateEventLeftPosition)
-                        .style('width', calculateEventWidth)
-                        .style('top', calculateEventTopPosition)
+                        .attr('transform', transformTranslate(calculateEventLeftPosition, calculateEventTopPosition));
+
+                    newEventGroups
+                        .append('path')
+                        .attr('d', generateEventCellPath)
+                        .attr('filter', 'url(#event-drop-shadow)');
+
+                    newEventGroups
+                        .append('text')
+                        .attr('x', 0).attr('y', 0)
+                        .attr('dx', 10).attr('dy', 20)
                         .text(TimeSpan.getTitle);
 
                     // add vertical line representing the current date
-                    timelineElement.append('div').classed('current-date', true)
-                        .style('left', getCurrentDatePosition);
+                    timelineElement.append('g')
+                        .classed(LINE_CURRENT_DATE_CLASS_NAME, true)
+                        .attr('transform', transformTranslate(getCurrentDatePosition, 0))
+                        .append('rect')
+                        .attr('width', 1)
+                        .attr('height', height);
 
                     // horizontal axis
                     horizontalAxis = d3.svg.axis().scale(timeScale).orient('bottom');
-                    horizontalAxisElement = timelineElement.append('svg')
+                    horizontalAxisElement = timelineElement.append('g')
+                        .call(horizontalAxis)
                         .classed(HORIZONTAL_AXIS_CLASS_NAME, true).classed('axis', true)
-                        .call(horizontalAxis);
+                        .attr('transform', transformTranslate(0, height - 30));
 
                     // zoom/drag behavior
                     // The `<any>` type cast below is forcing a conversion from d3.time.Scale<Range, Output> to
@@ -241,17 +295,6 @@ module Epoch {
                     timelineElement.call(zoom);
                 });
             };
-
-            main.height = function (value?: number): number|TimelineChart {
-                if (typeof value === 'number') {
-                    height = value;
-                    return main;
-                } else {
-                    return height;
-                }
-            };
-
-            return main;
         }
     }
 }
