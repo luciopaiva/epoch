@@ -110,6 +110,7 @@ module Epoch {
             // This plugin follows D3's conventions: https://bost.ocks.org/mike/chart/
             let
                 height: number,
+                currentDate: Date = new Date(),
                 horizontalAxis: d3.svg.Axis,
                 horizontalAxisElement: d3.Selection<any>,
                 zoom: d3.behavior.Zoom<any>,
@@ -159,7 +160,9 @@ module Epoch {
             }
 
             function calculateEventWidth(datum: TimeEvent): number {
-                return timeScale(datum.hasNoEnd ? new Date() : datum.end.toDate()) - timeScale(datum.begin.toDate());
+                return timeScale(
+                        datum.hasNoEnd ? currentDate : datum.end.toDate()) - timeScale(datum.begin.toDate()
+                    );
             }
 
             function calculateEventLeftPosition(datum: TimeEvent): number {
@@ -244,6 +247,9 @@ module Epoch {
             }
 
             function redraw() {
+                // update current date
+                currentDate = new Date();
+
                 // update horizontal axis
                 horizontalAxisElement.call(horizontalAxis);
 
