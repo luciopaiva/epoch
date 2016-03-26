@@ -27,38 +27,65 @@ module Epoch {
             (selection: d3.Selection<any>): void;
         }
 
+        const enum TimeEventKind {
+            Instant = 1,
+            Interval
+        }
+
         /**
-         * Simple pojo representing a time span
+         * Simple pojo representing a time event
          */
-        export class TimeSpan {
+        export class TimeEvent {
+            public static VALID_DATE_FORMATS: (string|(()=>void))[] = [moment.ISO_8601, 'YYYY-MM-DD', 'YYYY'];
+            public kind: TimeEventKind;
             public begin: Moment;
             public end: Moment;
             public hasNoEnd: boolean;
 
+            /**
+             * Creates a pojo representing a time event.
+             *
+             * @param series which series contains this event
+             * @param kind the kind of the event
+             * @param title a short description, meant to be displayed in the timeline
+             * @param begin date when the event begins, ISO format
+             * @param end date when the event ends, ISO format
+             * @param description a longer description of the event
+             * @param url URL associated with the event
+             */
+            constructor(public series: string, kind: string, public title: string, begin: string, end: string,
+                        public description: string, public url: string) {
+                this.kind = parseInt(kind, 10);
+                this.begin = TimeEvent.strToMoment(begin);
+                this.end = TimeEvent.strToMoment(end);
+                this.hasNoEnd = this.end === null;
+            }
+
             public static strToMoment(date: string): Moment {
-                return (date === '-') ? null : moment(date, 'YYYY-MM-DD');
+                let
+                    result: Moment = null;
+
+                if (typeof date == 'string' && date.length > 0) {
+                    result = moment(date, TimeEvent.VALID_DATE_FORMATS, true);
+                }
+
+                return result !== null && result.isValid() ? result : null;
             }
 
             /**
              * @param event event to be uniquely identified
              * @returns {string} returns a unique identifier for the event passed
              */
-            public static getUniqueIndenfitier(event: TimeSpan): string {
-                return event.name;
+            public static getUniqueIndenfitier(event: TimeEvent): string {
+                return event.title;
             }
 
-            public static checkIfEventHasNoEnd(event: TimeSpan): boolean {
+            public static checkIfEventHasNoEnd(event: TimeEvent): boolean {
                 return event.hasNoEnd;
             }
 
-            public static getTitle(event: TimeSpan): string {
-                return event.name;
-            }
-
-            constructor(public name: string, begin: string, end: string) {
-                this.begin = TimeSpan.strToMoment(begin);
-                this.end = TimeSpan.strToMoment(end);
-                this.hasNoEnd = end === '-';
+            public static getTitle(event: TimeEvent): string {
+                return event.title;
             }
         }
 
@@ -96,7 +123,7 @@ module Epoch {
              * @param events
              * @returns {Date[]}
              */
-            function getTimelineDomain(events: TimeSpan[]): [Date, Date] {
+            function getTimelineDomain(events: TimeEvent[]): [Date, Date] {
                 let
                     latestMoment: Moment,
                     earliestMoment: Moment;
@@ -105,7 +132,7 @@ module Epoch {
                 //     return event.begin;
                 // }));
                 latestMoment = moment.max(events.map(function (event) {
-                    return event.hasNoEnd ? moment() : event.end;
+                    return event.kind === TimeEventKind.Instant || event.hasNoEnd ? moment() : event.end;
                 }));
 
                 // add some slack
@@ -129,11 +156,11 @@ module Epoch {
                 return [0, timelineWidth];
             }
 
-            function calculateEventWidth(datum: TimeSpan): number {
+            function calculateEventWidth(datum: TimeEvent): number {
                 return timeScale(datum.hasNoEnd ? new Date() : datum.end.toDate()) - timeScale(datum.begin.toDate());
             }
 
-            function calculateEventLeftPosition(datum: TimeSpan): number {
+            function calculateEventLeftPosition(datum: TimeEvent): number {
                 return timeScale(datum.begin.toDate());
             }
 
@@ -141,7 +168,7 @@ module Epoch {
                 return timeScale(new Date());
             }
 
-            function calculateEventTopPosition(timeSpanToFit: TimeSpan): number {
+            function calculateEventTopPosition(timeSpanToFit: TimeEvent): number {
                 let
                     newInterval: Interval,
                     didFit: boolean = false,
@@ -150,7 +177,7 @@ module Epoch {
                 // the end of the text to show may extrapolate the mark of the end of that event, so we want to make
                 // sure there's enough room so it doesn't overlap
                 let endOfText = moment(timeScale.invert(timeScale(timeSpanToFit.begin.toDate()) +
-                    Epoch.Util.getTextWidth(timeSpanToFit.name))).add(TIME_SPAN_RIGHT_MARGIN_IN_YEARS, 'years');
+                    Epoch.Util.getTextWidth(timeSpanToFit.title))).add(TIME_SPAN_RIGHT_MARGIN_IN_YEARS, 'years');
                 let worstCaseEnd = timeSpanToFit.hasNoEnd ?
                     moment(timeScale.domain()[1]) : moment.max(timeSpanToFit.end, endOfText);
 
@@ -185,7 +212,7 @@ module Epoch {
                 return EVENT_VERTICAL_MARGIN + level * EVENT_HEIGHT_PLUS_MARGIN;
             }
 
-            function generateEventCellPath(event: TimeSpan): string {
+            function generateEventCellPath(event: TimeEvent): string {
                 let
                     path: Util.SvgPathBuilder = new Util.SvgPathBuilder(true),
                     w: number = calculateEventWidth(event),
@@ -230,10 +257,10 @@ module Epoch {
             }
 
             function transformTranslate(
-                fnX: {(datum: TimeSpan):number}|number,
-                fnY: {(datum: TimeSpan):number}|number): (datum: TimeSpan)=>string {
+                fnX: {(datum: TimeEvent):number}|number,
+                fnY: {(datum: TimeEvent):number}|number): (datum: TimeEvent)=>string {
 
-                return function(datum: TimeSpan): string {
+                return function(datum: TimeEvent): string {
                     let x: number = typeof fnX === 'function' ? fnX(datum) : fnX;
                     let y: number = typeof fnY === 'function' ? fnY(datum) : fnY;
                     return 'translate(' + x + ',' + y + ')';
@@ -242,14 +269,14 @@ module Epoch {
 
             return function(selection: d3.Selection<any>): void {
                 // selection should be a single element
-                selection.each(function (events: TimeSpan[]) {
+                selection.each(function (events: TimeEvent[]) {
                     // ToDo events.filter(removeEventsOutsideVisibleRange());
 
                     // bind time spans to sub-elements having an `.event` class
                     timelineElement = d3.select(this);
                     height = parseInt(timelineElement.style('height'), 10);
                     boundData = timelineElement.selectAll('.' + EVENT_CLASS_NAME)
-                        .data(events, TimeSpan.getUniqueIndenfitier);
+                        .data(events, TimeEvent.getUniqueIndenfitier);
 
                     // prepare time scale
                     timeScale = d3.time.scale<number, number>()
@@ -282,7 +309,7 @@ module Epoch {
                         .append('text')
                         .attr('x', 0).attr('y', 0)
                         .attr('dx', 10).attr('dy', 20)
-                        .text(TimeSpan.getTitle);
+                        .text(TimeEvent.getTitle);
 
                     // add vertical line representing the current date
                     let currentDateLine = timelineElement.append('g')
