@@ -29,6 +29,10 @@ body {
     fill: rgb(230,230,230);
 }
 
+.timeline-event.timeline-event-instant path {
+    fill: rgb(200,200,200);
+}
+
 .timeline-current-date line {
     stroke: rgba(0, 0, 0, 0.2);
 }

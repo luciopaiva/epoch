@@ -12,6 +12,7 @@ module Epoch {
 
         const
             EVENT_CLASS_NAME = 'timeline-event',
+            EVENT_INSTANT_CLASS_NAME = 'timeline-event-instant',
             HORIZONTAL_AXIS_CLASS_NAME = 'timeline-horizontal-axis',
             LINE_CURRENT_DATE_CLASS_NAME = 'timeline-current-date',
             FUTURE_CLASS_NAME = 'timeline-future',
@@ -88,6 +89,10 @@ module Epoch {
 
             public static getTitle(event: TimeEvent): string {
                 return event.title;
+            }
+
+            public static isInstant(event: TimeEvent): boolean {
+                return event.kind === TimeEventKind.Instant;
             }
         }
 
@@ -217,7 +222,7 @@ module Epoch {
                 return EVENT_VERTICAL_MARGIN + level * EVENT_HEIGHT_PLUS_MARGIN;
             }
 
-            function generateEventCellPath(event: TimeEvent): string {
+            function drawRoundRectangle(event: TimeEvent): string {
                 let
                     path: Util.SvgPathBuilder = new Util.SvgPathBuilder(true),
                     w: number = calculateEventWidth(event),
@@ -244,6 +249,32 @@ module Epoch {
                     .close();
 
                 return path.build();
+            }
+
+            function drawPin(): string {
+                let
+                    path: Util.SvgPathBuilder = new Util.SvgPathBuilder(true),
+                    r: number = 2 / 6 * EVENT_HEIGHT;
+
+                path
+                    .moveTo(0, EVENT_HEIGHT)
+                    .lineTo(-r, r)
+                    .arcTo(r, r, 0, true, true, r, r)
+                    .close();
+
+                return path.build();
+            }
+
+            function generateEventCellPath(event: TimeEvent): string {
+
+                switch (event.kind) {
+                    case TimeEventKind.Instant:
+                        return drawPin();
+                    case TimeEventKind.Interval:
+                        return drawRoundRectangle(event);
+                    default:
+                        throw new Error('Unknown event type');
+                }
             }
 
             function redraw() {
@@ -306,6 +337,7 @@ module Epoch {
                     let newEventGroups = boundData.enter()
                         .append('g')
                         .classed(EVENT_CLASS_NAME, true)
+                        .classed(EVENT_INSTANT_CLASS_NAME, TimeEvent.isInstant)
                         .attr('transform', transformTranslate(calculateEventLeftPosition, calculateEventTopPosition));
 
                     newEventGroups

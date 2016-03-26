@@ -46,6 +46,13 @@ module Epoch.Util {
             return this;
         }
 
+        public lineTo(x: number, y: number): SvgPathBuilder {
+            this.path.push(this.useAbsolute ? 'L' : 'l', x, y);
+            this.saveInitialPosition(x, y);
+            this.saveCurrentPosition(x, y);
+            return this;
+        }
+
         public simpleBezierTo(x2: number, y2: number, x: number, y: number): SvgPathBuilder {
             this.path.push(this.useAbsolute ? 'S' : 's', x2, y2, x, y);
             this.saveCurrentPosition(x, y);
