@@ -14,6 +14,7 @@ module Epoch {
             EVENT_CLASS_NAME = 'timeline-event',
             HORIZONTAL_AXIS_CLASS_NAME = 'timeline-horizontal-axis',
             LINE_CURRENT_DATE_CLASS_NAME = 'timeline-current-date',
+            FUTURE_CLASS_NAME = 'timeline-future',
             EVENT_VERTICAL_MARGIN = 4,
             EVENT_HEIGHT = 30,
             EVENT_HEIGHT_PLUS_MARGIN = EVENT_HEIGHT + EVENT_VERTICAL_MARGIN,
@@ -255,6 +256,16 @@ module Epoch {
                         .domain(getTimelineDomain(events))
                         .range(getTimelineRange());
 
+                    // horizontal axis
+                    horizontalAxis = d3.svg.axis()
+                        .scale(timeScale)
+                        .orient('bottom')
+                        .innerTickSize(-height + 30);
+                    horizontalAxisElement = timelineElement.append('g')
+                        .call(horizontalAxis)
+                        .classed(HORIZONTAL_AXIS_CLASS_NAME, true).classed('axis', true)
+                        .attr('transform', transformTranslate(0, height - 30));
+
                     // process incoming data
                     allocatedSlots = [];
                     let newEventGroups = boundData.enter()
@@ -274,19 +285,23 @@ module Epoch {
                         .text(TimeSpan.getTitle);
 
                     // add vertical line representing the current date
-                    timelineElement.append('g')
+                    let currentDateLine = timelineElement.append('g')
                         .classed(LINE_CURRENT_DATE_CLASS_NAME, true)
-                        .attr('transform', transformTranslate(getCurrentDatePosition, 0))
+                        .attr('transform', transformTranslate(getCurrentDatePosition, 0));
+                    currentDateLine
                         .append('rect')
-                        .attr('width', 1)
-                        .attr('height', height);
-
-                    // horizontal axis
-                    horizontalAxis = d3.svg.axis().scale(timeScale).orient('bottom');
-                    horizontalAxisElement = timelineElement.append('g')
-                        .call(horizontalAxis)
-                        .classed(HORIZONTAL_AXIS_CLASS_NAME, true).classed('axis', true)
-                        .attr('transform', transformTranslate(0, height - 30));
+                        .classed(FUTURE_CLASS_NAME, true)
+                        .attr('height', height)
+                        .attr('width', 1000);
+                    currentDateLine
+                        .append('line')
+                        .attr('y2', height);
+                    currentDateLine
+                        .append('text')
+                        .attr('x', -15)
+                        .attr('dy', 15)
+                        .attr('transform', 'rotate(-90)')
+                        .text('Present');
 
                     // zoom/drag behavior
                     // The `<any>` type cast below is forcing a conversion from d3.time.Scale<Range, Output> to

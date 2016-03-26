@@ -29,11 +29,21 @@ body {
     fill: rgb(230,230,230);
 }
 
-.timeline-current-date {
+.timeline-current-date line {
+    stroke: rgba(0, 0, 0, 0.2);
+}
+
+.timeline-current-date text {
+    font-size: 10pt;
+    text-anchor: end;
+}
+
+.timeline-future {
+    fill: rgba(0, 0, 0, 0.05);
 }
 
 .axis line, .axis path {
     fill: none;
-    stroke: black;
+    stroke: rgba(0, 0, 0, 0.12);
     stroke-width: 1px;
 }
