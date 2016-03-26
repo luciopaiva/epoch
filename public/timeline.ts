@@ -15,8 +15,10 @@ module Epoch {
             HORIZONTAL_AXIS_CLASS_NAME = 'timeline-horizontal-axis',
             LINE_CURRENT_DATE_CLASS_NAME = 'timeline-current-date',
             FUTURE_CLASS_NAME = 'timeline-future',
-            EVENT_VERTICAL_MARGIN = 4,
-            EVENT_HEIGHT = 30,
+            EVENT_VERTICAL_MARGIN = 5,
+            EVENT_HEIGHT = 17,
+            EVENT_TITLE_X = 10,
+            EVENT_TITLE_Y = 12,
             EVENT_HEIGHT_PLUS_MARGIN = EVENT_HEIGHT + EVENT_VERTICAL_MARGIN,
             CHART_LATERAL_PADDING_IN_YEARS = 10,
             TIME_SPAN_RIGHT_MARGIN_IN_YEARS = 20;
@@ -302,13 +304,13 @@ module Epoch {
 
                     newEventGroups
                         .append('path')
-                        .attr('d', generateEventCellPath)
-                        .attr('filter', 'url(#event-drop-shadow)');
+                        .attr('d', generateEventCellPath);
+                        // .attr('filter', 'url(#event-drop-shadow)');
 
                     newEventGroups
                         .append('text')
                         .attr('x', 0).attr('y', 0)
-                        .attr('dx', 10).attr('dy', 20)
+                        .attr('dx', EVENT_TITLE_X).attr('dy', EVENT_TITLE_Y)
                         .text(TimeEvent.getTitle);
 
                     // add vertical line representing the current date
