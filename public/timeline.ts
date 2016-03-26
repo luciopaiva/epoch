@@ -16,13 +16,13 @@ module Epoch {
             HORIZONTAL_AXIS_CLASS_NAME = 'timeline-horizontal-axis',
             LINE_CURRENT_DATE_CLASS_NAME = 'timeline-current-date',
             FUTURE_CLASS_NAME = 'timeline-future',
+            CHART_LATERAL_PADDING_IN_YEARS = 10,
             EVENT_VERTICAL_MARGIN = 5,
             EVENT_HEIGHT = 17,
             EVENT_TITLE_X = 10,
             EVENT_TITLE_Y = 12,
             EVENT_HEIGHT_PLUS_MARGIN = EVENT_HEIGHT + EVENT_VERTICAL_MARGIN,
-            CHART_LATERAL_PADDING_IN_YEARS = 10,
-            TIME_SPAN_RIGHT_MARGIN_IN_YEARS = 20;
+            EVENT_RIGHT_MARGIN_IN_YEARS = 20;
 
         type Interval = [Moment, Moment];
 
@@ -178,20 +178,26 @@ module Epoch {
                 return timeScale(new Date());
             }
 
-            function calculateEventTopPosition(timeSpanToFit: TimeEvent): number {
+            function calculateEventTopPosition(eventToFit: TimeEvent): number {
                 let
                     newInterval: Interval,
                     didFit: boolean = false,
                     level: number = 0;
 
-                // the end of the text to show may extrapolate the mark of the end of that event, so we want to make
-                // sure there's enough room so it doesn't overlap
-                let endOfText = moment(timeScale.invert(timeScale(timeSpanToFit.begin.toDate()) +
-                    Epoch.Util.getTextWidth(timeSpanToFit.title))).add(TIME_SPAN_RIGHT_MARGIN_IN_YEARS, 'years');
-                let worstCaseEnd = timeSpanToFit.hasNoEnd ?
-                    moment(timeScale.domain()[1]) : moment.max(timeSpanToFit.end, endOfText);
+                // the end of the event title may extrapolate the rectangle shape of that event, so we want to make
+                // sure there's enough room for it not to overlap nearby events' shapes
+                let endOfText = moment(timeScale.invert(timeScale(eventToFit.begin.toDate()) +
+                    Epoch.Util.getTextWidth(eventToFit.title))).add(EVENT_RIGHT_MARGIN_IN_YEARS, 'years');
 
-                newInterval = [timeSpanToFit.begin, worstCaseEnd];
+                let worstCaseEnd: Moment;
+                if (eventToFit.kind === TimeEventKind.Instant) {
+                    worstCaseEnd = endOfText;
+                } else {
+                    worstCaseEnd = eventToFit.hasNoEnd ?
+                        moment(timeScale.domain()[1]) : moment.max(eventToFit.end, endOfText);
+                }
+
+                newInterval = [eventToFit.begin, worstCaseEnd];
 
                 // for each existing row
                 didFit = allocatedSlots.some(function (row: Interval[], rowIndex: number): boolean {
@@ -311,7 +317,7 @@ module Epoch {
                 selection.each(function (events: TimeEvent[]) {
                     // ToDo events.filter(removeEventsOutsideVisibleRange());
 
-                    // bind time spans to sub-elements having an `.event` class
+                    // bind time events to sub-elements having an `.event` class
                     timelineElement = d3.select(this);
                     height = parseInt(timelineElement.style('height'), 10);
                     boundData = timelineElement.selectAll('.' + EVENT_CLASS_NAME)
