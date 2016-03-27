@@ -13,6 +13,7 @@ module Epoch {
         const
             EVENT_CLASS_NAME = 'timeline-event',
             EVENT_LANE_CLASS_NAME = 'timeline-lane',
+            EVENT_LANE_LABEL_CLASS_NAME = 'timeline-lane-label',
             EVENT_LANE_SEPARATOR_CLASS_NAME = 'timeline-lane-separator',
             EVENT_INSTANT_CLASS_NAME = 'timeline-event-instant',
             HORIZONTAL_AXIS_CLASS_NAME = 'timeline-horizontal-axis',
@@ -118,6 +119,7 @@ module Epoch {
             // This plugin follows D3's conventions: https://bost.ocks.org/mike/chart/
             let
                 height: number,
+                laneHeight: number,
                 currentDate: Date = new Date(),
                 horizontalAxis: d3.svg.Axis,
                 horizontalAxisElement: d3.Selection<any>,
@@ -297,6 +299,22 @@ module Epoch {
                 }
             }
 
+            function drawLaneLabel(datum: { key: string }, index: number) {
+                let lane = d3.select(this);
+                lane
+                    .append('rect')
+                    .classed(EVENT_LANE_LABEL_CLASS_NAME, true)
+                    .attr('width', 24)
+                    .attr('height', laneHeight);
+                lane
+                    .append('text')
+                    .attr('x', -laneHeight / 2)
+                    .attr('dy', 17)
+                    .attr('transform', 'rotate(-90)')
+                    .attr('text-anchor', 'middle')
+                    .text(datum.key);
+            }
+
             function drawLaneSeparator(datum: any, index: number) {
                 if (index > 0) {  // no need to draw separator before the first lane
                     let line = new Util.SvgPathBuilder(true);
@@ -350,7 +368,7 @@ module Epoch {
                     timelineElement = d3.select(this);
                     height = parseInt(timelineElement.style('height'), 10);
                     timelineWidth = parseInt(timelineElement.style('width'), 10);
-                    let laneHeight = height / eventsBySeries.length;
+                    laneHeight = height / eventsBySeries.length;
 
                     // prepare a clip path so that a lane's contents doesn't invade another lane's area
                     timelineElement
@@ -382,7 +400,6 @@ module Epoch {
                         .append('g')
                         .classed(EVENT_LANE_CLASS_NAME, true)
                         .attr('clip-path', 'url(#timeline-lane-clip-path)')
-                        .each(drawLaneSeparator)
                         .attr('data-name', function (datum: { key: string }) { return datum.key; })
                         .attr('transform', function (datum: any, index: number) {
                             // organize lanes across the vertical axis
@@ -406,6 +423,11 @@ module Epoch {
                         .attr('x', 0).attr('y', 0)
                         .attr('dx', EVENT_TITLE_X).attr('dy', EVENT_TITLE_Y)
                         .text(TimeEvent.getTitle);
+
+                    // add lane labels and separators above events
+                    lanesSelection
+                        .each(drawLaneLabel)
+                        .each(drawLaneSeparator);
 
                     // add vertical line representing the current date
                     currentDateLine = timelineElement.append('g')

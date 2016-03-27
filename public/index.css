@@ -21,6 +21,10 @@ body {
 .timeline-lane {
 }
 
+.timeline-lane-label {
+    fill: rgb(240,240,255);
+}
+
 .timeline-lane-separator {
     stroke: black;
 }
