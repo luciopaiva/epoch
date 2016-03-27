@@ -18,6 +18,13 @@ body {
     height: 100%;
 }
 
+.timeline-lane {
+}
+
+.timeline-lane-separator {
+    stroke: black;
+}
+
 .timeline-horizontal-axis {
 }
 

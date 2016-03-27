@@ -3,22 +3,28 @@
 /// <reference path="timeline.ts" />
 
 module Epoch {
-    import TimeSpan = Epoch.TimelinePlugin.TimeEvent;
+    import TimeEvent = Epoch.TimelinePlugin.TimeEvent;
 
     var
         chart: TimelinePlugin.TimelineChart;
 
     export function run(): void {
+        let id = 1;
         chart = TimelinePlugin.chart();
 
+        function nestBySeries(event: TimeEvent) {
+            return event.series;
+        }
+
         d3.csv('sample.csv')
-            .row(function (obj: {}): TimeSpan {
-                return new TimeSpan(obj['series'], obj['kind'], obj['title'], obj['begin'], obj['end'],
+            .row(function (obj: {}): TimeEvent {
+                return new TimeEvent(id++, obj['series'], obj['kind'], obj['title'], obj['begin'], obj['end'],
                     obj['description'], obj['url']);
             })
-            .get(function (err, events: TimeSpan[]) {
+            .get(function (err, events: TimeEvent[]) {
                 if (!err) {
-                    d3.select('#timeline').datum(events).call(chart);
+                    let eventsBySeries = d3.nest().key(nestBySeries).entries(events);
+                    d3.select('#timeline').datum(eventsBySeries).call(chart);
                 } else {
                     throw err;
                 }

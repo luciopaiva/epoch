@@ -12,6 +12,8 @@ module Epoch {
 
         const
             EVENT_CLASS_NAME = 'timeline-event',
+            EVENT_LANE_CLASS_NAME = 'timeline-lane',
+            EVENT_LANE_SEPARATOR_CLASS_NAME = 'timeline-lane-separator',
             EVENT_INSTANT_CLASS_NAME = 'timeline-event-instant',
             HORIZONTAL_AXIS_CLASS_NAME = 'timeline-horizontal-axis',
             LINE_CURRENT_DATE_CLASS_NAME = 'timeline-current-date',
@@ -48,6 +50,7 @@ module Epoch {
             /**
              * Creates a pojo representing a time event.
              *
+             * @param id unique identifier of the event
              * @param series which series contains this event
              * @param kind the kind of the event
              * @param title a short description, meant to be displayed in the timeline
@@ -56,8 +59,8 @@ module Epoch {
              * @param description a longer description of the event
              * @param url URL associated with the event
              */
-            constructor(public series: string, kind: string, public title: string, begin: string, end: string,
-                        public description: string, public url: string) {
+            constructor(public id: number, public series: string, kind: string, public title: string,
+                        begin: string, end: string, public description: string, public url: string) {
                 this.kind = parseInt(kind, 10);
                 this.begin = TimeEvent.strToMoment(begin);
                 this.end = TimeEvent.strToMoment(end);
@@ -79,8 +82,8 @@ module Epoch {
              * @param event event to be uniquely identified
              * @returns {string} returns a unique identifier for the event passed
              */
-            public static getUniqueIndenfitier(event: TimeEvent): string {
-                return event.title;
+            public static getUniqueIdentifier(event: TimeEvent): string {
+                return event.id.toString();
             }
 
             public static checkIfEventHasNoEnd(event: TimeEvent): boolean {
@@ -119,19 +122,21 @@ module Epoch {
                 horizontalAxis: d3.svg.Axis,
                 horizontalAxisElement: d3.Selection<any>,
                 zoom: d3.behavior.Zoom<any>,
-                boundData: d3.selection.Update<any>,
+                eventsToBeRedrawn: d3.Selection<any>,
+                currentDateLine: d3.Selection<any>,
+                timelineWidth: number,
                 timelineElement: d3.Selection<any>,
                 timeScale: d3.time.Scale<number, number>,
-                allocatedSlots: Interval[][] = [];
+                allocatedSlotsBySeries: d3.Map<Interval[][]> = d3.map<Interval[][]>([]);
 
             /**
              * Infers the domain based on the earliest and latests dates seen in the data set. It also adds some
              * pre-configured slack to the domain.
              *
-             * @param events
+             * @param eventsBySeries
              * @returns {Date[]}
              */
-            function getTimelineDomain(events: TimeEvent[]): [Date, Date] {
+            function getTimelineDomain(eventsBySeries: { key: string; values: TimeEvent[] }[]): [Date, Date] {
                 let
                     latestMoment: Moment,
                     earliestMoment: Moment;
@@ -139,8 +144,13 @@ module Epoch {
                 // earliestMoment = moment.min(events.map(function (event) {
                 //     return event.begin;
                 // }));
-                latestMoment = moment.max(events.map(function (event) {
-                    return event.kind === TimeEventKind.Instant || event.hasNoEnd ? moment() : event.end;
+
+                // find the maximum date between all series
+                latestMoment = moment.max(eventsBySeries.map(function (events: { key: string; values: TimeEvent[] }) {
+                    // for this series, return the maximum date found
+                    return moment.max(events.values.map(function (event: TimeEvent) {
+                        return event.kind === TimeEventKind.Instant || event.hasNoEnd ? moment() : event.end;
+                    }));
                 }));
 
                 // add some slack
@@ -160,7 +170,6 @@ module Epoch {
              * @returns {number[]}
              */
             function getTimelineRange(): number[] {
-                let timelineWidth = parseInt(timelineElement.style('width'), 10);
                 return [0, timelineWidth];
             }
 
@@ -198,6 +207,11 @@ module Epoch {
                 }
 
                 newInterval = [eventToFit.begin, worstCaseEnd];
+
+                if (!allocatedSlotsBySeries.has(eventToFit.series)) {
+                    allocatedSlotsBySeries.set(eventToFit.series, []);
+                }
+                let allocatedSlots = allocatedSlotsBySeries.get(eventToFit.series);
 
                 // for each existing row
                 didFit = allocatedSlots.some(function (row: Interval[], rowIndex: number): boolean {
@@ -283,6 +297,17 @@ module Epoch {
                 }
             }
 
+            function drawLaneSeparator(datum: any, index: number) {
+                if (index > 0) {  // no need to draw separator before the first lane
+                    let line = new Util.SvgPathBuilder(true);
+                    line.moveTo(0, 0).horizontalTo(timelineWidth);
+                    d3.select(this)
+                        .append('path')
+                        .classed(EVENT_LANE_SEPARATOR_CLASS_NAME, true)
+                        .attr('d', line.build());
+                }
+            }
+
             function redraw() {
                 // update current date
                 currentDate = new Date();
@@ -291,13 +316,13 @@ module Epoch {
                 horizontalAxisElement.call(horizontalAxis);
 
                 // recalculate events' displacement
-                allocatedSlots = [];
-                boundData
+                allocatedSlotsBySeries = d3.map<Interval[][]>();
+                eventsToBeRedrawn
                     .attr('transform', transformTranslate(calculateEventLeftPosition, calculateEventTopPosition))
                     .select('path')
                     .attr('d', generateEventCellPath);
 
-                timelineElement.select('.' + LINE_CURRENT_DATE_CLASS_NAME)
+                currentDateLine
                     .attr('transform', transformTranslate(getCurrentDatePosition, 0));
             }
 
@@ -312,20 +337,32 @@ module Epoch {
                 }
             }
 
+            function eventSeriesToEvents(events: { key: string; values: TimeEvent[] }): TimeEvent[] {
+                return events.values;
+            }
+
             return function(selection: d3.Selection<any>): void {
                 // selection should be a single element
-                selection.each(function (events: TimeEvent[]) {
+                selection.each(function (eventsBySeries: { key: string; values: TimeEvent[] }[]) {
                     // ToDo events.filter(removeEventsOutsideVisibleRange());
 
-                    // bind time events to sub-elements having an `.event` class
+                    // bind time events to elements having an `.event` class
                     timelineElement = d3.select(this);
                     height = parseInt(timelineElement.style('height'), 10);
-                    boundData = timelineElement.selectAll('.' + EVENT_CLASS_NAME)
-                        .data(events, TimeEvent.getUniqueIndenfitier);
+                    timelineWidth = parseInt(timelineElement.style('width'), 10);
+                    let laneHeight = height / eventsBySeries.length;
+
+                    // prepare a clip path so that a lane's contents doesn't invade another lane's area
+                    timelineElement
+                        .append('clipPath')
+                        .attr('id', 'timeline-lane-clip-path')
+                        .append('rect')
+                        .attr('width', timelineWidth)
+                        .attr('height', laneHeight);
 
                     // prepare time scale
                     timeScale = d3.time.scale<number, number>()
-                        .domain(getTimelineDomain(events))
+                        .domain(getTimelineDomain(eventsBySeries))
                         .range(getTimelineRange());
 
                     // horizontal axis
@@ -338,19 +375,32 @@ module Epoch {
                         .classed(HORIZONTAL_AXIS_CLASS_NAME, true).classed('axis', true)
                         .attr('transform', transformTranslate(0, height - 30));
 
-                    // process incoming data
-                    allocatedSlots = [];
-                    let newEventGroups = boundData.enter()
+                    // swim lanes
+                    let lanesSelection = timelineElement.selectAll('.' + EVENT_LANE_CLASS_NAME)
+                        .data(eventsBySeries, function (datum: { key: string }) { return datum.key; } );
+                    let newLanesSelection = lanesSelection.enter()
+                        .append('g')
+                        .classed(EVENT_LANE_CLASS_NAME, true)
+                        .attr('clip-path', 'url(#timeline-lane-clip-path)')
+                        .each(drawLaneSeparator)
+                        .attr('data-name', function (datum: { key: string }) { return datum.key; })
+                        .attr('transform', function (datum: any, index: number) {
+                            // organize lanes across the vertical axis
+                            return 'translate(0,' + (index * laneHeight) + ')';
+                        });
+
+                    // events per se
+                    let eventsSelection = newLanesSelection.selectAll('.' + EVENT_CLASS_NAME)
+                        .data(eventSeriesToEvents, TimeEvent.getUniqueIdentifier);
+                    let newEventGroups = eventsSelection.enter()
                         .append('g')
                         .classed(EVENT_CLASS_NAME, true)
                         .classed(EVENT_INSTANT_CLASS_NAME, TimeEvent.isInstant)
                         .attr('transform', transformTranslate(calculateEventLeftPosition, calculateEventTopPosition));
-
                     newEventGroups
                         .append('path')
                         .attr('d', generateEventCellPath);
                         // .attr('filter', 'url(#event-drop-shadow)');
-
                     newEventGroups
                         .append('text')
                         .attr('x', 0).attr('y', 0)
@@ -358,7 +408,7 @@ module Epoch {
                         .text(TimeEvent.getTitle);
 
                     // add vertical line representing the current date
-                    let currentDateLine = timelineElement.append('g')
+                    currentDateLine = timelineElement.append('g')
                         .classed(LINE_CURRENT_DATE_CLASS_NAME, true)
                         .attr('transform', transformTranslate(getCurrentDatePosition, 0));
                     currentDateLine
@@ -375,6 +425,9 @@ module Epoch {
                         .attr('dy', 15)
                         .attr('transform', 'rotate(-90)')
                         .text('Present');
+
+                    // prepare a selection for every time we have to update the events
+                    eventsToBeRedrawn = timelineElement.selectAll('.' + EVENT_CLASS_NAME);
 
                     // zoom/drag behavior
                     // The `<any>` type cast below is forcing a conversion from d3.time.Scale<Range, Output> to
