@@ -1,8 +1,0 @@
-{
-  "ambientDependencies": {
-    "d3": "registry:dt/d3#0.0.0+20160317120654",
-    "moment": "registry:dt/moment#2.8.0+20160316155526",
-    "moment-node": "registry:dt/moment-node#2.11.1+20160317120654",
-    "require": "registry:dt/require#2.1.20+20160316155526"
-  }
-}

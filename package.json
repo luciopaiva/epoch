@@ -1,19 +1,19 @@
 {
-  "name": "epoch",
+  "name": "public",
   "private": true,
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
+  "main": "index.js",
   "scripts": {
-    "run": "node target/server",
-    "postinstall": "typings install && cd public && npm install"
+    "postinstall": "typings install"
   },
+  "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.13.4"
-  },
-  "devDependencies": {
-    "typings": "latest"
+    "bootstrap": "^3.3.6",
+    "d3": "^3.5.16",
+    "moment": "^2.12.0",
+    "requirejs": "^2.2.0"
   }
 }
